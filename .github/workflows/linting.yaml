@@ -1,0 +1,68 @@
+name: Terraform linting
+
+on:
+    workflow_dispatch:
+        inputs:
+            choice:
+                description: 'Type yes to lint the terraform infrastructure'
+                required: true
+                type: string
+                default: ''
+
+permissions:
+  id-token: write
+  contents: read
+
+defaults:
+    run:
+        working-directory: ./infra
+
+env:
+  AWS_REGION: eu-north-1
+
+jobs:
+    terraform_linting:
+        runs-on: ubuntu-latest
+        steps:
+            - name: safety check
+              run: |
+                if [ "${{ github.event.inputs.choice }}" != "yes" ]; then
+                echo "terraform linting is cancelled"
+                exit 1
+                fi
+              working-directory: .
+
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Configure AWS credentials (OIDC)
+              uses: aws-actions/configure-aws-credentials@v5
+              with:
+                role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/oidc-role
+                aws-region: ${{ env.AWS_REGION }}
+
+            - name: Setup Terraform
+              uses: hashicorp/setup-terraform@v3
+              with:
+                terraform_version: "1.14.2"
+
+            - name: Terraform init
+              run: terraform init
+
+            - name: Terraform fmt
+              run: terraform fmt --recursive
+
+            - name: Terraform validate
+              run: terraform validate
+
+            - name: Run Checkov action
+              id: checkov
+              uses: bridgecrewio/checkov-action@master
+              with:
+                directory: ./infra
+                framework: terraform
+                output_format: cli
+                soft_fail: true
+
+            - name: Terraform plan
+              run: terraform plan
