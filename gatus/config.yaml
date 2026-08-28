@@ -1,0 +1,8 @@
+endpoints:
+  - name: exempel-startsida
+    group: core
+    url: "https://example.com"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 500"
